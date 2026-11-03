@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local configuration and secrets
+.env
+.env.*
+.streamlit/secrets.toml
+
+# Generated chat history and local editor files
+ai啥子伴侣/sessions/
+.idea/workspace.xml
+.idea/shelf/
