@@ -6,6 +6,7 @@ from collections.abc import Generator
 from datetime import datetime
 import logging
 import os
+from zoneinfo import ZoneInfo
 
 import streamlit as st
 from openai import (
@@ -20,6 +21,8 @@ from openai import (
 
 
 logger = logging.getLogger(__name__)
+LOCAL_TIMEZONE = ZoneInfo("Asia/Shanghai")
+WEEKDAYS = "一二三四五六日"
 
 
 st.set_page_config(
@@ -53,8 +56,12 @@ def _create_client(api_key: str) -> OpenAI:
     )
 
 
+def _local_now() -> datetime:
+    return datetime.now(LOCAL_TIMEZONE)
+
+
 def _new_session_id() -> str:
-    base = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    base = _local_now().strftime("%Y-%m-%d %H:%M:%S")
     candidate = base
     suffix = 2
     while candidate in st.session_state.saved_sessions:
@@ -107,6 +114,7 @@ def _delete_session(session_id: str) -> None:
 
 
 def _build_system_prompt() -> str:
+    current_time = _local_now()
     nickname = st.session_state.nick_name.strip() or "啥子"
     character = (
         st.session_state.character.strip()
@@ -115,6 +123,10 @@ def _build_system_prompt() -> str:
     return (
         f"你叫{nickname}，是用户的 AI 伴侣。"
         f"你的性格和角色设定是：{character}。"
+        f"当前日期时间：{current_time:%Y年%m月%d日 %H:%M}，"
+        f"星期{WEEKDAYS[current_time.weekday()]}，"
+        "时区为 Asia/Shanghai（UTC+8）。"
+        "用户询问日期、时间或星期时，必须严格以这条信息为准，不要自行推测。"
         "请使用自然、简洁的中文交流，根据上下文持续对话。"
     )
 
