@@ -30,6 +30,10 @@
 - Branch：`main`
 - Main file path：`streamlit_app.py`
 
+登录 Streamlit Community Cloud 后，可以直接使用
+[部署入口](https://share.streamlit.io/deploy?repository=https%3A%2F%2Fgithub.com%2Feeeee66676%2Fai-chatbot-cs&branch=main&mainModule=streamlit_app.py)
+创建应用。
+
 在 Streamlit Community Cloud 的应用设置中添加 Secret：
 
 ```toml
