@@ -203,10 +203,9 @@ with st.sidebar:
                 st.rerun()
         with delete_col:
             if st.button(
-                "删除会话",
+                "删除",
                 key=f"delete_{session_id}",
                 icon=":material/delete:",
-                label_visibility="collapsed",
             ):
                 _delete_session(session_id)
                 st.rerun()
