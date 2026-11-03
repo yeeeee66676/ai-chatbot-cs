@@ -2,12 +2,24 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-import os
 from collections.abc import Generator
+from datetime import datetime
+import logging
+import os
 
 import streamlit as st
-from openai import OpenAI
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    AuthenticationError,
+    OpenAI,
+    PermissionDeniedError,
+    RateLimitError,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 st.set_page_config(
@@ -23,16 +35,22 @@ def _get_secret(name: str) -> str | None:
     try:
         value = st.secrets.get(name)
         if value:
-            return str(value)
+            return str(value).strip()
     except Exception:
         # Apps remain usable locally before .streamlit/secrets.toml is created.
         pass
-    return os.getenv(name)
+    environment_value = os.getenv(name)
+    return environment_value.strip() if environment_value else None
 
 
 @st.cache_resource(show_spinner=False)
 def _create_client(api_key: str) -> OpenAI:
-    return OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    return OpenAI(
+        api_key=api_key,
+        base_url="https://api.deepseek.com",
+        timeout=30.0,
+        max_retries=1,
+    )
 
 
 def _new_session_id() -> str:
@@ -114,6 +132,22 @@ def _stream_reply(client: OpenAI) -> Generator[str, None, None]:
     for chunk in response:
         if chunk.choices and chunk.choices[0].delta.content:
             yield chunk.choices[0].delta.content
+
+
+def _request_error_message(error: Exception) -> str:
+    if isinstance(error, AuthenticationError):
+        return "DeepSeek API 密钥无效或已失效，请重新生成密钥并更新云端 Secret。"
+    if isinstance(error, PermissionDeniedError):
+        return "DeepSeek 拒绝了该密钥的访问权限，请检查密钥权限。"
+    if isinstance(error, RateLimitError):
+        return "DeepSeek 请求过于频繁，请稍后再试。"
+    if isinstance(error, APITimeoutError):
+        return "连接 DeepSeek 超时，请稍后再试。"
+    if isinstance(error, APIConnectionError):
+        return "无法连接 DeepSeek，请稍后再试。"
+    if isinstance(error, APIStatusError):
+        return f"DeepSeek 请求失败（HTTP {error.status_code}），请稍后再试。"
+    return "AI 服务暂时不可用，请稍后再试。"
 
 
 st.session_state.setdefault("messages", [])
@@ -230,9 +264,10 @@ if prompt:
     with st.chat_message("assistant"):
         try:
             reply = st.write_stream(_stream_reply(client))
-        except Exception:
+        except Exception as error:
+            logger.exception("DeepSeek chat request failed")
             st.error(
-                "AI 服务暂时不可用，请稍后再试。",
+                _request_error_message(error),
                 icon=":material/error:",
             )
             _save_current_session()
